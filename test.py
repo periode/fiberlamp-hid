@@ -1,12 +1,19 @@
 import hid
 import time
 
+header_byte = 0xa9
+footer_byte = 0x5c
+
+vendor_id = 0x24c2
+product_id = 0x1306
+
 def twos_comp(val):
     """compute the 2's compliment of int value val"""
     if (val & (1 << (7))) != 0: # if sign bit is set e.g., 8bit: 128-255
         val = val - (1 << 8)        # compute negative value
     return val                         # return positive value as is
 
+#calculate the sum, 
 
 def tobyte(data):
     result = []
@@ -14,17 +21,9 @@ def tobyte(data):
         result.append(bytes(bytearray([b])))
     return result
 
-def calculate_checksum(message):
-    #sum of all bytes
-    total = 0
-    for byte in message:
-        total += byte
-
-    # print "total: %r" % total
-
+def sum_data_bytes(message):
+    total = sum(message)
     mod = total % 256
-
-    print "final checksum %r" % mod
 
     return mod
 
@@ -39,50 +38,34 @@ for d in hid.enumerate(0, 0):
 
 print "-------------------------PRINT CHECKSUM--------------------------------"
 
-data = [1, 9] #get serial command
-print "data: %r" % data
-# checksum should be 246 for the get serial command
+data = [0x6, 0x1, 0x49, 0x02, 0x8b, 0x00] #command
+print "sum of bytes: %r" % sum_data_bytes(data)
+print "result of two's complement: %r" % twos_comp(sum_data_bytes(data))
 
-print "result of two's complement: %r" % twos_comp(246)
-checksum = (twos_comp(246) % 256)
+checksum = (twos_comp(sum_data_bytes(data)) % 256)
+print "checksum: %r" % checksum
 
 print "-------------------------OPEN DEVICE--------------------------------"
 
 try:
     print "Opening device"
-    h = hid.device(0x24c2, 0x1306) #vendor_id, product_id, path (optional)
-    #h = hid.device(0x1941, 0x8021) # Fine Offset USB Weather Station
+    h = hid.device(vendor_id, product_id)
 
-    print "Manufacturer: %s" % h.get_manufacturer_string()
-    print "Product: %s" % h.get_product_string()
-    print "Serial No: %s" % h.get_serial_number_string()
+    print "Manufacturer: %r" % h.get_manufacturer_string()
+    print "Product: %r" % h.get_product_string()
+    print "Serial No: %r" % h.get_serial_number_string()
 
     # try non-blocking mode by uncommenting the next line
     #h.set_nonblocking(1)
-
-    # try writing some data to the device
-    # for k in range(10):
-    #     for i in [0, 1]:
-    #         for j in [0, 1]:
-    #             h.write([0x80, i, j])
-    #             d = h.read(5)
-    #             if d:
-    #                 print d
-    #             time.sleep(0.05)
     
-    data = [1, 9] #get serial command
-    print "data: %r" % data
-    checksum = 246
-
-    print twos_comp(246)
-    
-    message = [169] + data + [checksum, 92]
+    #whole message: header + length + command + optional data payload + checksum + cookie
+    message = [header_byte] + data + [0x23, footer_byte]
 
     while True:
         h.write(message)
-            d = h.read(255)
-        print d
-        print "received byte: %r" % bytes(bytearray(d))
+        print "message sent: %r" % message
+        d = h.read(255)
+        print "received byte: %r\n" % bytes(bytearray(d))
 
     print "Closing device"
     h.close()
