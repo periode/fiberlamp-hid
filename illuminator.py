@@ -1,3 +1,5 @@
+#dependencies cython-hid
+
 import hid
 import math
 import time
@@ -76,7 +78,7 @@ try:
 
         print "sending message: %r" % message
         h.write(message)
-       
+
         d = h.read(255)
         print "received byte: %r\n" % bytes(bytearray(d))
 
@@ -89,8 +91,3 @@ except IOError, ex:
     print "in this script with one from the enumeration list output above and try again."
 
 print "Lights off!"
-
-
-
-
-

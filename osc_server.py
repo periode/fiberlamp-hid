@@ -21,9 +21,25 @@ def handle_root(addr, tags, stuff, source):
 	print "data %s" % stuff
 	print "---"
 
+def handle_change(addr, tags, data, source):
+    print "---"
+    print "handling change from %s" % OSC.getUrlStr(source)
+    print "with addr %s" % addr
+    print "tags %s" % tags
+    print "data %s" % data
+    print "---"
+
 def handle_color(addr, tags, data, source):
     print "---"
-    print "message received from %s" % OSC.getUrlStr(source)
+    print "handling color from %s" % OSC.getUrlStr(source)
+    print "with addr %s" % addr
+    print "tags %s" % tags
+    print "data %s" % data
+    print "---"
+
+def handle_transition(addr, tags, data, source):
+    print "---"
+    print "handling transition from %s" % OSC.getUrlStr(source)
     print "with addr %s" % addr
     print "tags %s" % tags
     print "data %s" % data
@@ -31,12 +47,15 @@ def handle_color(addr, tags, data, source):
 
 print "endpoints:"
 print "---"
+print "/change r g b t"
 print "/color r g b:"
 print "/transition t"
 print "---"
 
 s.addMsgHandler('/', handle_root)
+s.addMsgHandler('/change', handle_change)
 s.addMsgHandler('/color', handle_color)
+s.addMsgHandler('/transition', handle_transition)
 
 print "Registered Callback-functions are :"
 for addr in s.getOSCAddressSpace():
