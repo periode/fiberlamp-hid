@@ -17,7 +17,7 @@ app.listen(app.get('port'), function(){
 app.get('/', sendOSCGreeting);
 app.post('/change', sendChange);
 app.post('/color', sendColor);
-app.post('/transition', sendTransition);
+app.post('/heartbeat', sendHeartbeat);
 
 //osc
 var ip = '127.0.0.1';
@@ -27,7 +27,8 @@ var client = new osc.Client(ip, osc_port);
 function sendOSCGreeting(req, res){
   res.sendFile(path.join(__dirname, './public', 'index.html'));
 
-  /*
+  /*-----
+  
   client.send('/', 'hello', function(err){
     if(err)
       console.log(err);
@@ -39,7 +40,8 @@ function sendOSCGreeting(req, res){
   var msg = new osc.Message('/');
   msg.append('hey');
   client.send(msg);
-  */
+
+  -----*/
 }
 
 function sendChange(req, res){
@@ -66,8 +68,8 @@ function sendColor(req, res){
   res.send('color: '+data+' sent successfully');
 }
 
-function sendTransition(req, res){
-  var data = parseInt(req.body.t);
+function sendHeartbeat(req, res){
+  var data = 'heartbeat';
 
   client.send('/transition', data, function(err){
     if(err)

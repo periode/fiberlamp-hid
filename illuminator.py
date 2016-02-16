@@ -163,7 +163,7 @@ def handle_color(addr, tags, data, source):
     sending_data = True
     set_color(data)
 
-def handle_color(addr, tags, data, source):
+def handle_heartbeat(addr, tags, data, source):
     print "---"
     print "handling color from %s" % OSC.getUrlStr(source)
     print "with addr %s" % addr
