@@ -48,24 +48,22 @@ function sendChange(req, res){
   client.send('/change', data, function(err){
     if(err)
       console.log(err);
-    console.log('data sent: '+data);
-    client.kill();
+    console.log('change sent: '+data);
   });
 
-  res.send('data: '+data+' sent successfully');
+  res.send('change: '+data+' sent successfully');
 }
 
 function sendColor(req, res){
   var data = [parseInt(req.body.r), parseInt(req.body.g), parseInt(req.body.b)];
-
+  console.log('sending data',data);
   client.send('/color', data, function(err){
     if(err)
       console.log(err);
-    console.log('data sent: '+data);
-    client.kill();
+    console.log('color sent: '+data);
   });
 
-  res.send('data: '+data+' sent successfully');
+  res.send('color: '+data+' sent successfully');
 }
 
 function sendTransition(req, res){
@@ -74,9 +72,8 @@ function sendTransition(req, res){
   client.send('/transition', data, function(err){
     if(err)
       console.log(err);
-    console.log('data sent: '+data);
-    client.kill();
+    console.log('transition sent: '+data);
   });
 
-  res.send('data: '+data+' sent successfully');
+  res.send('transition: '+data+' sent successfully');
 }
