@@ -15,9 +15,9 @@ footer_byte = 0x5c
 vendor_id = 0x24c2
 product_id = 0x1306
 
-red = 100
-green = 0
-blue = 0
+red = 10
+green = 10
+blue = 10
 blink = 0
 
 time_coeff = 100
@@ -49,6 +49,12 @@ def sum_data_bytes(message):
 
 def clamp(val):
     return max(min(255, int(val)), 0)
+
+def ramp(a, b, t, delta):
+    if a < b:
+        a = a + ((delta*b)/t)
+    else:
+        a = a - ((delta*b)/t)
 
 #-------------------------LIST USB DEVICES--------------------------------
 print "available usb devices:"
@@ -131,29 +137,54 @@ def change_color(data):
 
     start_time = time.clock()
 
-    target_r = data[0]
-    target_g = data[1]
-    target_b = data[2]
+    target_r = data[0]+1
+    target_g = data[1]+1
+    target_b = data[2]+1
     t = data[3]
 
-    if red < target_red:
-        while red < target_r:
-            previous_time = current_time
-            current_time = time.clock()
-            delta_time = current_time - previous_time
-            red = red + ((delta_time*target_r)/t)
-            green = green + ((delta_time*target_g)/t)
-            blue = blue + ((delta_time*target_b)/t)
-            send_color()
-    else:
-        while red > target_r:
-            previous_time = current_time
-            current_time = time.clock()
-            delta_time = current_time - previous_time
-            red = red - ((delta_time*target_r)/t)
-            green = green - ((delta_time*target_g)/t)
-            blue = blue - ((delta_time*target_b)/t)
-            send_color()
+    thresh = 2
+
+    temp_r = red
+    temp_g = green
+    temp_b = blue
+
+    print "changing color to %r %r %r over %r seconds..." % (target_r, target_g, target_b, t)
+
+    while (abs(temp_r - target_r) > thresh) or (abs(temp_g - target_g) > thresh) or (abs(temp_b - target_b) > thresh):
+        previous_time = current_time
+        current_time = time.clock()
+        delta_time = current_time - previous_time
+        #TODO make the ramp work
+        # ramp(temp_r, target_r, t, delta_time)
+        # ramp(temp_g, target_g, t, delta_time)
+        # ramp(temp_b, target_b, t, delta_time)
+
+
+        #TODO it takes forever to get to a low value
+        if temp_r < target_r:
+            temp_r = temp_r + ((delta_time*target_r)/t)
+        else:
+            temp_r = temp_r - ((delta_time*target_r)/t)
+
+        if temp_g < target_g:
+            temp_g = temp_g + ((delta_time*target_g)/t)
+        else:
+            temp_g = temp_g - ((delta_time*target_g)/t)
+
+        if temp_b < target_b:
+            temp_b = temp_b + ((delta_time*target_b)/t)
+        else:
+            temp_b = temp_b - ((delta_time*target_b)/t)
+
+        red = clamp(temp_r)
+        green = clamp(temp_g)
+        blue = clamp(temp_b)
+
+        # print "currently %r %r %r" % (red, green, blue)
+
+        send_color()
+
+    print "...changed color to %r %r %r over %r seconds" % (red, green, blue, t)
 
 
 def set_color(data):
