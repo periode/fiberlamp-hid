@@ -15,7 +15,7 @@ footer_byte = 0x5c
 vendor_id = 0x24c2
 product_id = 0x1306
 
-red = 0
+red = 100
 green = 0
 blue = 0
 blink = 0
@@ -24,7 +24,11 @@ time_coeff = 100
 color_coeff = 0
 base_coeff = 0
 
-sending_data = False
+current_time = 0.0
+previous_time = 0.0
+delta_time = 0.0
+
+sending_data = True
 
 
 #-------------------------CALCULATING CHECKSUM--------------------------------
@@ -44,7 +48,7 @@ def sum_data_bytes(message):
     return mod
 
 def clamp(val):
-    return max(min(255, val), 0)
+    return max(min(255, int(val)), 0)
 
 #-------------------------LIST USB DEVICES--------------------------------
 print "available usb devices:"
@@ -56,72 +60,137 @@ for d in hid.enumerate(0, 0):
         print "%s : %s" % (key, d[key])
     print ""
 
+
+#-------------------------TRANSITION OVER TIME--------------------------------
+def heartbeat(data):
+    global red
+    global green
+    global blue
+
+    global current_time
+    global previous_time
+    global delta_time
+
+    start_time = time.clock()
+
+    target_r = data[0]
+    target_g = data[1]
+    target_b = data[2]
+    t = data[3]
+
+    print "setting heartbeat to %r %r %r over %r seconds" % (target_r, target_g, target_b, t)
+
+    temp_r = red
+    temp_g = green
+    temp_b = blue
+
+#ramp value up
+    while red < target_r:
+        previous_time = current_time
+        current_time = time.clock()
+        delta_time = current_time - previous_time
+        temp_r = temp_r + ((delta_time*target_r)/t)
+        temp_g = temp_g + ((delta_time*target_g)/t)
+        temp_b = temp_b + ((delta_time*target_b)/t)
+
+        red = clamp(temp_r)
+        green = clamp(temp_g)
+        blue = clamp(temp_b)
+
+        send_color()
+
+#ramp value down
+    while red > 0:
+        previous_time = current_time
+        current_time = time.clock()
+        delta_time = current_time - previous_time
+        temp_r = temp_r - ((delta_time*target_r)/t)
+        temp_g = temp_g - ((delta_time*target_g)/t)
+        temp_b = temp_b - ((delta_time*target_b)/t)
+
+        red = clamp(temp_r)
+        green = clamp(temp_g)
+        blue = clamp(temp_b)
+
+        send_color()
+
+
+    stop_time = time.clock()
+    print 'completed in %r' % (stop_time - start_time)
+    print 'transitioned lights to: r %r g %r b %r' % (red, green, blue)
+
 #"-------------------------SEND DATA--------------------------------"
 def change_color(data):
-    try:
-        print "Opening device..."
-        h = hid.device(vendor_id, product_id)
-        print "Device opened!"
+    global red
+    global green
+    global blue
 
-        while sending_data:#change it to "while the current color is not lerped all the way to the target color"
-            print 'data ready to send %r' % data
+    global current_time
+    global previous_time
+    global delta_time
 
-            red = data[0]
-            blue = data[1]
-            green = data[2]
-            transtion_time = [3]
+    start_time = time.clock()
 
-            #so in order to do the transition,
-            # i need to divide the difference of each values r, g, b by (deltatime * transitiontime)
-            # and then add them at everyframe
-            # and when they reach the difference set sending data to false
+    target_r = data[0]
+    target_g = data[1]
+    target_b = data[2]
+    t = data[3]
 
+    if red < target_red:
+        while red < target_r:
+            previous_time = current_time
+            current_time = time.clock()
+            delta_time = current_time - previous_time
+            red = red + ((delta_time*target_r)/t)
+            green = green + ((delta_time*target_g)/t)
+            blue = blue + ((delta_time*target_b)/t)
+            send_color()
+    else:
+        while red > target_r:
+            previous_time = current_time
+            current_time = time.clock()
+            delta_time = current_time - previous_time
+            red = red - ((delta_time*target_r)/t)
+            green = green - ((delta_time*target_g)/t)
+            blue = blue - ((delta_time*target_b)/t)
+            send_color()
 
-            blink = 0
-
-            red = clamp(red)
-            green = clamp(green)
-            blue = clamp(blue)
-
-            data = [0x6, 0x1, red, green, blue, blink]
-            checksum = -(twos_comp(sum_data_bytes(data))) % 256
-            message = [header_byte] + data + [checksum, footer_byte]
-
-            print "sending message: %r" % message
-            h.write(message)
-
-            d = h.read(255)
-            print "received byte: %r\n" % bytes(bytearray(d))
-
-        print "Closing device"
-        h.close()
-
-    except IOError, ex:
-        print ex
 
 def set_color(data):
+    global red
+    global green
+    global blue
+    global blink
+
+    print 'setting new color to %r' % data
+    red = clamp(data[0])
+    blue = clamp(data[1])
+    green = clamp(data[2])
+    blink = 0
+
+    send_color()
+
+
+def send_color():
+    global red
+    global green
+    global blue
+    global blink
+
     try:
-        h = hid.device(vendor_id, product_id)
-        print "device opened..."
+        illuminator = hid.device(vendor_id, product_id)
 
-        print 'setting new color to %r' % data
-        red = clamp(data[0])
-        blue = clamp(data[1])
-        green = clamp(data[2])
-        blink = 0
-
+        # while sending_data:
         data = [0x6, 0x1, red, green, blue, blink]
         checksum = -(twos_comp(sum_data_bytes(data))) % 256
-        message = [header_byte] + data + [checksum, footer_byte]
+        message  = [header_byte] + data + [checksum, footer_byte]
+        illuminator.write(message)
 
-        print "sending message: %r" % message
-        h.write(message)
-
-        print "Closing device"
-        h.close()
-
+        illuminator.close()
     except IOError, ex:
         print ex
+        illuminator.close()
+
 
 
 ##########################
@@ -142,43 +211,19 @@ def handle_root(addr, tags, stuff, source):
 	print "---"
 
 def handle_change(addr, tags, data, source):
-    print "---"
-    print "handling change from %s" % OSC.getUrlStr(source)
-    print "with addr %s" % addr
-    print "tags %s" % tags
-    print "data %s" % data
-    print "---"
-
-    sending_data = True
     change_color(data)
 
 def handle_color(addr, tags, data, source):
-    print "---"
-    print "handling color from %s" % OSC.getUrlStr(source)
-    print "with addr %s" % addr
-    print "tags %s" % tags
-    print "data %s" % data
-    print "---"
-
-    sending_data = True
     set_color(data)
 
 def handle_heartbeat(addr, tags, data, source):
-    print "---"
-    print "handling color from %s" % OSC.getUrlStr(source)
-    print "with addr %s" % addr
-    print "tags %s" % tags
-    print "data %s" % data
-    print "---"
-
-    sending_data = True
-    pulse(data)
+    heartbeat(data)
 
 print "endpoints:"
 print "---"
 print "/change r g b t ---- changes the color to the specified rgb values over t seconds"
 print "/color r g b ---- changes the color immediately"
-print "/heartbeat"
+print "/heartbeat r g b t --- pulsates to the target color over t seconds"
 print "---"
 
 s.addMsgHandler('/', handle_root)
@@ -186,14 +231,13 @@ s.addMsgHandler('/change', handle_change)
 s.addMsgHandler('/color', handle_color)
 s.addMsgHandler('/heartbeat', handle_heartbeat)
 
-print "Registered Callback-functions are :"
-for addr in s.getOSCAddressSpace():
-	print addr
-
-# Start OSCServer
+#Start OSCServer
 print "\nStarting OSCServer. Use ctrl-C to quit."
 st = threading.Thread( target = s.serve_forever )
 st.start()
+
+#open HID device
+# send_color()
 
 #Threads
 try :
