@@ -15,6 +15,9 @@ footer_byte = 0x5c
 vendor_id = 0x24c2
 product_id = 0x1306
 
+vendor_id_large = 0x24c2
+product_id_large = 0x1306
+
 red = 10
 green = 10
 blue = 10
@@ -51,10 +54,17 @@ def clamp(val):
     return max(min(255, int(val)), 0)
 
 def ramp(a, b, t, delta):
+    i = max (a, b)
+
+    if t < 1:
+        t = t*t
+
     if a < b:
-        a = a + ((delta*b)/t)
+        a = a + ((delta*i)/t)
     else:
-        a = a - ((delta*b)/t)
+        a = a - ((delta*i)/t)
+
+    return a
 
 #-------------------------LIST USB DEVICES--------------------------------
 print "available usb devices:"
@@ -84,20 +94,23 @@ def heartbeat(data):
     target_b = data[2]
     t = data[3]
 
-    print "setting heartbeat to %r %r %r over %r seconds" % (target_r, target_g, target_b, t)
+    print "setting heartbeat to %r %r %r over %r second(s)" % (target_r, target_g, target_b, t)
 
     temp_r = red
     temp_g = green
     temp_b = blue
 
+    thresh = 2
+
 #ramp value up
-    while red < target_r:
+    while (abs(temp_r - target_r) > thresh) or (abs(temp_g - target_g) > thresh) or (abs(temp_b - target_b) > thresh):
         previous_time = current_time
         current_time = time.clock()
         delta_time = current_time - previous_time
-        temp_r = temp_r + ((delta_time*target_r)/t)
-        temp_g = temp_g + ((delta_time*target_g)/t)
-        temp_b = temp_b + ((delta_time*target_b)/t)
+
+        temp_r = ramp(temp_r, target_r, t, delta_time)
+        temp_g = ramp(temp_g, target_g, t, delta_time)
+        temp_b = ramp(temp_b, target_b, t, delta_time)
 
         red = clamp(temp_r)
         green = clamp(temp_g)
@@ -106,10 +119,11 @@ def heartbeat(data):
         send_color()
 
 #ramp value down
-    while red > 0:
+    while red > 0 or green > 0 or blue > 0:
         previous_time = current_time
         current_time = time.clock()
         delta_time = current_time - previous_time
+
         temp_r = temp_r - ((delta_time*target_r)/t)
         temp_g = temp_g - ((delta_time*target_g)/t)
         temp_b = temp_b - ((delta_time*target_b)/t)
@@ -122,8 +136,8 @@ def heartbeat(data):
 
 
     stop_time = time.clock()
-    print 'completed in %r' % (stop_time - start_time)
-    print 'transitioned lights to: r %r g %r b %r' % (red, green, blue)
+
+    print 'heartbeat set over %r second(s)' % ((stop_time - start_time))
 
 #"-------------------------SEND DATA--------------------------------"
 def change_color(data):
@@ -142,6 +156,9 @@ def change_color(data):
     target_b = data[2]+1
     t = data[3]
 
+    # if t < 1:
+    #     t = t * 0.1
+
     thresh = 2
 
     temp_r = red
@@ -154,37 +171,19 @@ def change_color(data):
         previous_time = current_time
         current_time = time.clock()
         delta_time = current_time - previous_time
-        #TODO make the ramp work
-        # ramp(temp_r, target_r, t, delta_time)
-        # ramp(temp_g, target_g, t, delta_time)
-        # ramp(temp_b, target_b, t, delta_time)
 
-
-        #TODO it takes forever to get to a low value
-        if temp_r < target_r:
-            temp_r = temp_r + ((delta_time*target_r)/t)
-        else:
-            temp_r = temp_r - ((delta_time*target_r)/t)
-
-        if temp_g < target_g:
-            temp_g = temp_g + ((delta_time*target_g)/t)
-        else:
-            temp_g = temp_g - ((delta_time*target_g)/t)
-
-        if temp_b < target_b:
-            temp_b = temp_b + ((delta_time*target_b)/t)
-        else:
-            temp_b = temp_b - ((delta_time*target_b)/t)
+        temp_r = ramp(temp_r, target_r, t, delta_time)
+        temp_g = ramp(temp_g, target_g, t, delta_time)
+        temp_b = ramp(temp_b, target_b, t, delta_time)
 
         red = clamp(temp_r)
         green = clamp(temp_g)
         blue = clamp(temp_b)
 
-        # print "currently %r %r %r" % (red, green, blue)
-
         send_color()
 
-    print "...changed color to %r %r %r over %r seconds" % (red, green, blue, t)
+    stop_time = time.clock()
+    print "...changed color over %r seconds" % ((stop_time - start_time))
 
 
 def set_color(data):
@@ -195,8 +194,8 @@ def set_color(data):
 
     print 'setting new color to %r' % data
     red = clamp(data[0])
-    blue = clamp(data[1])
-    green = clamp(data[2])
+    green = clamp(data[1])
+    blue = clamp(data[2])
     blink = 0
 
     send_color()
