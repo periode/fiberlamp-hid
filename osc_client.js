@@ -28,7 +28,7 @@ function sendOSCGreeting(req, res){
   res.sendFile(path.join(__dirname, './public', 'index.html'));
 
   /*-----
-  
+
   client.send('/', 'hello', function(err){
     if(err)
       console.log(err);
@@ -45,6 +45,7 @@ function sendOSCGreeting(req, res){
 }
 
 function sendChange(req, res){
+  //sending RGBT values
   var data = [parseInt(req.body.r), parseInt(req.body.g), parseInt(req.body.b), parseInt(req.body.t)];
 
   client.send('/change', data, function(err){
@@ -57,7 +58,9 @@ function sendChange(req, res){
 }
 
 function sendColor(req, res){
+  //sending RGB values
   var data = [parseInt(req.body.r), parseInt(req.body.g), parseInt(req.body.b)];
+
   console.log('sending data',data);
   client.send('/color', data, function(err){
     if(err)
@@ -69,9 +72,10 @@ function sendColor(req, res){
 }
 
 function sendHeartbeat(req, res){
-  var data = 'heartbeat';
+  //sending RGBT values
+  var data = [parseInt(req.body.r), parseInt(req.body.g), parseInt(req.body.b), parseInt(req.body.t)];
 
-  client.send('/transition', data, function(err){
+  client.send('/heartbeat', data, function(err){
     if(err)
       console.log(err);
     console.log('transition sent: '+data);

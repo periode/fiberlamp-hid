@@ -3,23 +3,53 @@
 
 </head>
 
-<body>
+<body style="font-family: Arial; background-color: rgb(200, 200,200);">
+  <h2 style="text-align: center;">OSC client for Illuminator</h2>
+
+  <!-- SET COLOR -->
+
+  <h4>send message to change color to specified r g b values over t seconds.</h4>
   <form action="/change" method="post">
+    R:
     <input type="number" name="r" value="red">
+    G:
     <input type="number" name="g" value="green">
+    B:
     <input type="number" name="b" value="blue">
+    T:
     <input type="number" name="t" value="transition">
     <input type="submit" value="submit  change">
   </form>
-<br><br>
+<br>
+<br>
+
+<!-- CHANGE COLOR -->
+
+<h4>send message to change color to specified r g b values immediately.</h4>
   <form action="/color" method="post">
+    R:
     <input type="number" name="r" value="red">
+    G:
     <input type="number" name="g" value="green">
+    B:
     <input type="number" name="b" value="blue">
     <input type="submit" value="submit color">
   </form>
-<br><br>
+<br>
+<br>
+
+<!-- HEARTBEAT -->
+
+<h4>send message to pulse to specified r g b values over t seconds (will ramp up to target color, then ramp down to black)</h4>
   <form action="/heartbeat" method="post">
+    R:
+    <input type="number" name="r" value="red">
+    G:
+    <input type="number" name="g" value="green">
+    B:
+    <input type="number" name="b" value="blue">
+    T:
+    <input type="number" name="t" value="transition">
     <input type="submit" value="submit heartbeat">
   </form>
 </body>
