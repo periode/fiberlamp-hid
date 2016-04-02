@@ -72,11 +72,17 @@ class Color:
     def __str__(self):
         return "color(%i, %i, %i)" % (self.r, self.g, self.b)
 
-    def ramp(self, color, duration, delta_time):
-        r = ramp(self.r, color.r, duration, delta_time)
-        b = ramp(self.b, color.b, duration, delta_time)
-        g = ramp(self.g, color.g, duration, delta_time)
-        return Color(r, g, b)
+    def lerp(self, color, duration, lerp_val, delta_time):
+        # r = ramp(self.r, color.r, duration, delta_time)
+        # b = ramp(self.b, color.b, duration, delta_time)
+        # g = ramp(self.g, color.g, duration, delta_time)
+        # self.r = self.r + lerp_val*delta_time*duration(color.r-self.r)
+        self.r = self.r + lerp_val*(color.r-self.r)
+        self.g = self.g + lerp_val*(color.g-self.g)
+        self.b = self.b + lerp_val*(color.b-self.b)
+        #a +t(b-a)
+        # t needs to increase and be multiplied by delta_time and multiplied by the amount of time
+        return Color(self.r, self.g, self.b)
 
     def distance(self, other):
         return max(max(abs(self.r - other.r), abs(self.g - other.g)), abs(self.b - other.b))
@@ -118,76 +124,50 @@ class Illuminator:
 
 #-------------------------COLOR METHODS--------------------------------
 #heartbeat ramps from the current color to the target color over t seconds, then ramps back down to the starting color
-def heartbeat(data):
-    global red
-    global green
-    global blue
-
-    global current_time
-    global previous_time
-    global delta_time
-
+def heartbeat(illuminators, target, duration):
     start_time = time.clock()
 
-    start_r = red
-    start_g = green
-    start_b = blue
+    thresh = 1
 
-    target_r = data[0]
-    target_g = data[1]
-    target_b = data[2]
-
-    t = data[3]
-
-    print "setting heartbeat to %r %r %r over %r second(s)" % (target_r, target_g, target_b, t)
-
-    temp_r = red
-    temp_g = green
-    temp_b = blue
-
-    thresh = 2
+    current_time = 0
+    previous_time = 0
+    delta_time = 0
+    lerp_val = 0
 
 #ramp value up
-    while (abs(temp_r - target_r) > thresh) or (abs(temp_g - target_g) > thresh) or (abs(temp_b - target_b) > thresh):
-        previous_time = current_time
-        current_time = time.clock()
-        delta_time = current_time - previous_time
+    for illuminator in illuminators: #TODO define function that checks for distance without having a for loop on 198
+        while illuminator.color.distance(target) > thresh:
+            previous_time = current_time
+            current_time = time.clock()
+            delta_time = current_time - previous_time
 
-        temp_r = ramp(temp_r, target_r, t, delta_time)
-        temp_g = ramp(temp_g, target_g, t, delta_time)
-        temp_b = ramp(temp_b, target_b, t, delta_time)
+            illuminator.set(illuminator.color.lerp(target, duration, lerp_val, delta_time))
+            lerp_val = lerp_val + 0.00000003*(duration*4)
 
-        red = clamp(temp_r)
-        green = clamp(temp_g)
-        blue = clamp(temp_b)
-
-        send_color()
-
+    lerp_val = 0
 #ramp value down
-    while (abs(temp_r - start_r) > thresh) or (abs(temp_g - start_g) > thresh) or (abs(temp_b - start_b) > thresh):
-        previous_time = current_time
-        current_time = time.clock()
-        delta_time = current_time - previous_time
+    for illuminator in illuminators: #TODO define function that checks for distance without having a for loop on 198
+        while illuminator.color.distance(Color(0, 0, 0)) > thresh:
+            previous_time = current_time
+            current_time = time.clock()
+            delta_time = current_time - previous_time
 
-        temp_r = ramp(temp_r, start_r, t, delta_time)
-        temp_g = ramp(temp_g, start_g, t, delta_time)
-        temp_b = ramp(temp_b, start_b, t, delta_time)
+            illuminator.set(illuminator.color.lerp(Color(0, 0, 0), duration, lerp_val, delta_time))
+            lerp_val = lerp_val + 0.00000005*(duration*4)
 
-        red = clamp(temp_r)
-        green = clamp(temp_g)
-        blue = clamp(temp_b)
 
-        send_color()
+    for illuminator in illuminators:
+        illuminator.set(Color(0, 0, 0))
 
-    print "setting sending to %r" % sending
+    print 'set heartbeat'
 
     stop_time = time.clock()
-
     print 'heartbeat set over %r second(s)' % ((stop_time - start_time))
 
 def transition(illuminators, target, duration):
     start_time = time.clock()
 
+    lerp_val = 0
     thresh = 2
 
     print "changing pair color to %s over %r seconds..." % (target, duration)
@@ -195,13 +175,14 @@ def transition(illuminators, target, duration):
     current_time = 0
     previous_time = 0
     delta_time = 0
-    for illuminator in illuminators: #TODO define function that checks for distance without having a for loop on 197
+    for illuminator in illuminators: #TODO define function that checks for distance without having a for loop on 198
         while illuminator.color.distance(target) > thresh:
             previous_time = current_time
             current_time = time.clock()
             delta_time = current_time - previous_time
 
-            illuminator.set(illuminator.color.ramp(target, duration, delta_time))
+            illuminator.set(illuminator.color.lerp(target, duration, lerp_val, delta_time))
+            lerp_val = lerp_val + 0.00000003
 
     stop_time = time.clock()
     print "...changed color over %r seconds" % ((stop_time - start_time))
@@ -240,8 +221,9 @@ for d in hid.enumerate(0, 0):
 if len(illuminators) > 2 or len(illuminators) == 0:
     print "unexpected amount of light"
     exit(1)
+else:
+    print "succesfully lit illuminator(s): %r" % illuminators
 
-print "succesfully lit illuminator: %r" % illuminators
 
 ##########################
 #	OSC
@@ -264,6 +246,7 @@ def handle_root(addr, tags, data, source):
 def handle_change(addr, tags, data, source):
     color = Color(data[0], data[1], data[2])
     duration = data[3]
+    print "handling change color %s over %r" % (color, duration)
     transition(illuminators, color, duration)
 
 def handle_color(addr, tags, data, source):
@@ -272,7 +255,9 @@ def handle_color(addr, tags, data, source):
         illuminator.set(color)
 
 def handle_heartbeat(addr, tags, data, source):
-    heartbeat(data)
+    color = Color(data[0], data[1], data[2])
+    duration = data[3]
+    heartbeat(illuminators, color, duration)
 
 def handle_black(addr, tags, data, source):
     illuminator.turn_off()
