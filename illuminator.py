@@ -24,6 +24,7 @@ current_time = 0.0
 previous_time = 0.0
 delta_time = 0.0
 
+beating = False
 
 #-------------------------HELPER METHODS--------------------------------
 #compute the 2's compliment of int value val
@@ -77,11 +78,9 @@ class Color:
         # b = ramp(self.b, color.b, duration, delta_time)
         # g = ramp(self.g, color.g, duration, delta_time)
         # self.r = self.r + lerp_val*delta_time*duration(color.r-self.r)
-        self.r = self.r + lerp_val*(color.r-self.r)
-        self.g = self.g + lerp_val*(color.g-self.g)
-        self.b = self.b + lerp_val*(color.b-self.b)
-        #a +t(b-a)
-        # t needs to increase and be multiplied by delta_time and multiplied by the amount of time
+        self.r = self.r + lerp_val*(color.r-self.r)*delta_time
+        self.g = self.g + lerp_val*(color.g-self.g)*delta_time
+        self.b = self.b + lerp_val*(color.b-self.b)*delta_time
         return Color(self.r, self.g, self.b)
 
     def distance(self, other):
@@ -105,7 +104,7 @@ class Illuminator:
         self.connection.close()
 
     def turn_off(self):
-        self.set(BLACK)
+        self.set(Color(0, 0, 0))
 
     def set(self, color):
         try:
@@ -125,6 +124,7 @@ class Illuminator:
 #-------------------------COLOR METHODS--------------------------------
 #heartbeat ramps from the current color to the target color over t seconds, then ramps back down to the starting color
 def heartbeat(illuminators, target, duration):
+    global beating
     start_time = time.clock()
 
     thresh = 1
@@ -134,34 +134,38 @@ def heartbeat(illuminators, target, duration):
     delta_time = 0
     lerp_val = 0
 
-#ramp value up
-    for illuminator in illuminators: #TODO define function that checks for distance without having a for loop on 198
+    #ramp value up
+    for illuminator in illuminators:
         while illuminator.color.distance(target) > thresh:
             previous_time = current_time
             current_time = time.clock()
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(target, duration, lerp_val, delta_time))
-            lerp_val = lerp_val + 0.00000003*(duration*4)
+            lerp_val = lerp_val + (0.01*duration)
 
     lerp_val = 0
-#ramp value down
-    for illuminator in illuminators: #TODO define function that checks for distance without having a for loop on 198
+
+    #ramp value down
+    for illuminator in illuminators:
         while illuminator.color.distance(Color(0, 0, 0)) > thresh:
             previous_time = current_time
             current_time = time.clock()
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(Color(0, 0, 0), duration, lerp_val, delta_time))
-            lerp_val = lerp_val + 0.00000005*(duration*4)
+            lerp_val = lerp_val + (0.01/duration)
+        beating = False
 
 
     for illuminator in illuminators:
         illuminator.set(Color(0, 0, 0))
 
-    print 'set heartbeat'
 
     stop_time = time.clock()
+    time.sleep(1)
+
+
     print 'heartbeat set over %r second(s)' % ((stop_time - start_time))
 
 def transition(illuminators, target, duration):
@@ -182,7 +186,7 @@ def transition(illuminators, target, duration):
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(target, duration, lerp_val, delta_time))
-            lerp_val = lerp_val + 0.00000003
+            lerp_val = lerp_val + (0.001 / duration);
 
     stop_time = time.clock()
     print "...changed color over %r seconds" % ((stop_time - start_time))
@@ -231,7 +235,7 @@ else:
 
 # Initialize the OSC server and the client.
 s = OSC.OSCServer(receive_address)
-
+s.request_queue_size = 1
 s.addDefaultHandlers()
 
 #default handler prints out the message
@@ -253,14 +257,20 @@ def handle_color(addr, tags, data, source):
     color = Color(data[0], data[1], data[2])
     for illuminator in illuminators:
         illuminator.set(color)
+        illuminator.color = color
 
 def handle_heartbeat(addr, tags, data, source):
+    global beating
     color = Color(data[0], data[1], data[2])
     duration = data[3]
+    print "received message with beating is %r" % beating
+    beating = True
     heartbeat(illuminators, color, duration)
 
 def handle_black(addr, tags, data, source):
-    illuminator.turn_off()
+    for illuminator in illuminators:
+        illuminator.turn_off()
+
 
 def handle_noise(addr, tags, data, source):
     noise_color(data)
@@ -271,7 +281,6 @@ print "/change r g b t ---- changes the color to the specified rgb values over t
 print "/color r g b ---- changes the color immediately"
 print "/heartbeat r g b t --- pulsates to the target color over t seconds"
 print "/black --- turns off the lamp"
-print "/noise --- noise"
 print "---"
 
 s.addMsgHandler('/', handle_root)
@@ -283,8 +292,11 @@ s.addMsgHandler('/noise', handle_noise)
 
 #Start OSCServer
 print "\nStarting OSCServer. Use ctrl-C to quit."
-st = threading.Thread( target = s.serve_forever )
-st.start()
+# st = threading.Thread( target = s.serve_forever )
+# st.start()
+while True:
+    if beating is False:
+        s.handle_request()
 
 #Threads
 try :
@@ -292,11 +304,13 @@ try :
 		time.sleep(10)
 
 except KeyboardInterrupt :
-	print "\nClosing OSCServer."
-	s.close()
-	print "Waiting for Server-thread to finish"
-	st.join()
-	print "Done"
+    for illuminator in illuminators:
+        illuminator.turn_off()
+    print "\nClosing OSCServer."
+    s.close()
+    print "Waiting for Server-thread to finish"
+    st.join()
+    print "Done"
 
 
 print "...lights off!"

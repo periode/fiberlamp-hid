@@ -5,7 +5,10 @@ function list(){
 	var a = arrayfromargs(arguments);
 	post("received list " + a + "\n");
 	post("#1 " + a[0] + "\n");
-	hslToRgb(a[0], a[1], a[2]);
+	var rgb = hslToRgb(a[0], a[1], a[2]);
+	outlet(0, rgb[0]);
+	outlet(1, rgb[1]);
+	outlet(2, rgb[2]);
 }
 
 
