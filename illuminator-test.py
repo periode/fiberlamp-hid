@@ -253,7 +253,7 @@ def handle_change(addr, tags, data, source):
     print "handling change color %s over %r" % (color, duration)
     transition(illuminators, color, duration)
 
-prev_color = "color(0, 0, 0)"
+prev_color = None
 def handle_color(addr, tags, data, source):
     global prev_color
     color = Color(data[0], data[1], data[2])
