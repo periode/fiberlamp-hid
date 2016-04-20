@@ -96,8 +96,8 @@ class Illuminator:
     def __init__(self, path):
         self.path = path
         self.color = BLACK
-        self.connection = hid.device(None, None, path)
-        self.connection.set_nonblocking(1)
+        # self.connection = hid.device(None, None, path)
+        # self.connection.set_nonblocking(1)
         self.turn_off()
 
     def close(self):
@@ -108,10 +108,12 @@ class Illuminator:
 
     def set(self, color):
         try:
-            data = [0x6, 0x1, color.r, color.g, color.b, 0]
-            checksum = -(twos_comp(sum_data_bytes(data))) % 256
-            message  = [header_byte] + data + [checksum, footer_byte]
-            self.connection.write(message)
+            # data = [0x6, 0x1, color.r, color.g, color.b, 0]
+            # checksum = -(twos_comp(sum_data_bytes(data))) % 256
+            # message  = [header_byte] + data + [checksum, footer_byte]
+            # self.connection.write(message)
+            # print "setting color for illuminator to %s" % color
+            self.color = color
 
         except IOError, ex:
             print ex
@@ -128,6 +130,7 @@ def heartbeat(illuminators, target, duration):
     start_time = time.clock()
 
     previous_color = Color(illuminators[0].color.r, illuminators[0].color.g, illuminators[0].color.b)
+    print "previous_color %s" % previous_color
 
     thresh = 1
 
@@ -144,7 +147,7 @@ def heartbeat(illuminators, target, duration):
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(target, duration, lerp_val, delta_time))
-            lerp_val = lerp_val + (0.01/duration)
+            lerp_val = lerp_val + (0.05/duration)
 
     lerp_val = 0
 
@@ -156,7 +159,7 @@ def heartbeat(illuminators, target, duration):
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(previous_color, duration, lerp_val, delta_time))
-            lerp_val = lerp_val + (0.01/duration)
+            lerp_val = lerp_val + (0.05/duration)
         beating = False
 
     stop_time = time.clock()
@@ -175,14 +178,14 @@ def transition(illuminators, target, duration):
     current_time = 0
     previous_time = 0
     delta_time = 0
-    for illuminator in illuminators: #TODO define function that checks for distance without having a for loop on 198
+    for illuminator in illuminators:
         while illuminator.color.distance(target) > thresh:
             previous_time = current_time
             current_time = time.clock()
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(target, duration, lerp_val, delta_time))
-            lerp_val = lerp_val + (0.001 / duration);
+            lerp_val = lerp_val + (0.0001 / duration);
 
     stop_time = time.clock()
     print "...changed color over %r seconds" % ((stop_time - start_time))
@@ -209,20 +212,21 @@ def noise_color(illuminator, color, duration):
 print "available usb devices:"
 
 illuminators = []
+illuminators.append(Illuminator("lol"))
 
 for d in hid.enumerate(0, 0):
     keys = d.keys()
     keys.sort()
     # for key in keys:
     #     print "%s : %s" % (key, d[key])
-    if d["product_id"] == product_id: # and d["vendor_id"] is vendor_id:
-        illuminators.append(Illuminator(d["path"]))
+    # if d["product_id"] == product_id: # and d["vendor_id"] is vendor_id:
+        # illuminators.append(Illuminator(d["path"]))
 
-if len(illuminators) > 2 or len(illuminators) == 0:
-    print "unexpected amount of light"
-    exit(1)
-else:
-    print "succesfully lit illuminator(s): %r" % illuminators
+# if len(illuminators) > 2 or len(illuminators) == 0:
+#     print "unexpected amount of light"
+#     exit(1)
+# else:
+#     print "succesfully lit illuminator(s): %r" % illuminators
 
 
 ##########################
@@ -251,6 +255,7 @@ def handle_change(addr, tags, data, source):
 
 def handle_color(addr, tags, data, source):
     color = Color(data[0], data[1], data[2])
+    print "setting color to %s" % color
     for illuminator in illuminators:
         illuminator.set(color)
         illuminator.color = color
