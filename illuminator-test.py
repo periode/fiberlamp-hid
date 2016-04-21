@@ -73,14 +73,14 @@ class Color:
     def __str__(self):
         return "color(%i, %i, %i)" % (self.r, self.g, self.b)
 
-    def lerp(self, color, duration, lerp_val, delta_time):
+    def lerp(self, origin, target, duration, lerp_val, delta_time):
         # r = ramp(self.r, color.r, duration, delta_time)
         # b = ramp(self.b, color.b, duration, delta_time)
         # g = ramp(self.g, color.g, duration, delta_time)
         # self.r = self.r + lerp_val*delta_time*duration(color.r-self.r)
-        self.r = self.r + lerp_val*(color.r-self.r)*delta_time
-        self.g = self.g + lerp_val*(color.g-self.g)*delta_time
-        self.b = self.b + lerp_val*(color.b-self.b)*delta_time
+        self.r = origin.r + lerp_val*(color.r-origin.r)*delta_time
+        self.g = origin.g + lerp_val*(color.g-origin.g)*delta_time
+        self.b = origin.b + lerp_val*(color.b-origin.b)*delta_time
         return Color(self.r, self.g, self.b)
 
     def distance(self, other):

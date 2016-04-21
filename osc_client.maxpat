@@ -9,7 +9,7 @@
 			"modernui" : 1
 		}
 ,
-		"rect" : [ 139.0, 119.0, 1013.0, 640.0 ],
+		"rect" : [ 62.0, 95.0, 740.0, 640.0 ],
 		"bgcolor" : [ 0.19708, 0.278701, 0.321569, 1.0 ],
 		"editing_bgcolor" : [ 0.191325, 0.258215, 0.293296, 1.0 ],
 		"bglocked" : 0,
@@ -131,13 +131,14 @@
 , 			{
 				"box" : 				{
 					"id" : "obj-17",
+					"linecount" : 2,
 					"maxclass" : "message",
 					"numinlets" : 2,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 753.0, 250.0, 81.0, 22.0 ],
+					"patching_rect" : [ 753.0, 250.0, 67.0, 35.0 ],
 					"style" : "",
-					"text" : "250 10 46 10"
+					"text" : "250 10 46 10."
 				}
 
 			}

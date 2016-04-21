@@ -73,14 +73,14 @@ class Color:
     def __str__(self):
         return "color(%i, %i, %i)" % (self.r, self.g, self.b)
 
-    def lerp(self, color, duration, lerp_val, delta_time):
+    def lerp(self, origin, target, lerp_val):
         # r = ramp(self.r, color.r, duration, delta_time)
         # b = ramp(self.b, color.b, duration, delta_time)
         # g = ramp(self.g, color.g, duration, delta_time)
         # self.r = self.r + lerp_val*delta_time*duration(color.r-self.r)
-        self.r = self.r + lerp_val*(color.r-self.r)*delta_time
-        self.g = self.g + lerp_val*(color.g-self.g)*delta_time
-        self.b = self.b + lerp_val*(color.b-self.b)*delta_time
+        self.r = origin.r + lerp_val*(target.r-origin.r)
+        self.g = origin.g + lerp_val*(target.g-origin.g)
+        self.b = origin.b + lerp_val*(target.b-origin.b)
         return Color(self.r, self.g, self.b)
 
     def distance(self, other):
@@ -112,6 +112,7 @@ class Illuminator:
             checksum = -(twos_comp(sum_data_bytes(data))) % 256
             message  = [header_byte] + data + [checksum, footer_byte]
             self.connection.write(message)
+            self.color = color
 
         except IOError, ex:
             print ex
@@ -143,8 +144,8 @@ def heartbeat(illuminators, target, duration):
             current_time = time.clock()
             delta_time = current_time - previous_time
 
-            illuminator.set(illuminator.color.lerp(target, duration, lerp_val, delta_time))
-            lerp_val = lerp_val + (0.01/duration)
+            illuminator.set(illuminator.color.lerp(previous_color, target, lerp_val))
+            lerp_val = lerp_val + (0.0002/duration)
 
     lerp_val = 0
 
@@ -155,20 +156,19 @@ def heartbeat(illuminators, target, duration):
             current_time = time.clock()
             delta_time = current_time - previous_time
 
-            illuminator.set(illuminator.color.lerp(previous_color, duration, lerp_val, delta_time))
-            lerp_val = lerp_val + (0.01/duration)
+            illuminator.set(illuminator.color.lerp(target, previous_color, lerp_val))
+            lerp_val = lerp_val + (0.0002/duration)
         beating = False
 
-    stop_time = time.clock()
 
-
-    print 'heartbeat set over %r second(s) back to %s' % ((stop_time - start_time), previous_color)
+    print 'heartbeat set over %r second(s) back to %s -- DONE' % ((current_time - start_time), previous_color)
 
 def transition(illuminators, target, duration):
     start_time = time.clock()
 
     lerp_val = 0
     thresh = 2
+    previous_color = Color(illuminators[0].color.r, illuminators[0].color.g, illuminators[0].color.b)
 
     print "changing pair color to %s over %r seconds..." % (target, duration)
 
@@ -181,11 +181,12 @@ def transition(illuminators, target, duration):
             current_time = time.clock()
             delta_time = current_time - previous_time
 
-            illuminator.set(illuminator.color.lerp(target, duration, lerp_val, delta_time))
-            lerp_val = lerp_val + (0.001 / duration);
+            illuminator.set(illuminator.color.lerp(previous_color, target, lerp_val))
+            lerp_val = lerp_val + (0.0002 / duration);
 
-    stop_time = time.clock()
-    print "...changed color over %r seconds" % ((stop_time - start_time))
+    illuminator.set(target)
+
+    print "...changed color over %r seconds -- DONE" % ((current_time - start_time))
 
 
 def noise_color(illuminator, color, duration):
@@ -253,7 +254,6 @@ def handle_color(addr, tags, data, source):
     color = Color(data[0], data[1], data[2])
     for illuminator in illuminators:
         illuminator.set(color)
-        illuminator.color = color
 
 def handle_heartbeat(addr, tags, data, source):
     global beating
