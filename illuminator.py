@@ -4,6 +4,7 @@
 
 import hid
 import math
+import random
 import time
 from time import sleep
 from noise import pnoise1
@@ -25,6 +26,7 @@ previous_time = 0.0
 delta_time = 0.0
 
 beating = False
+is_blinking = False
 
 #-------------------------HELPER METHODS--------------------------------
 #compute the 2's compliment of int value val
@@ -74,10 +76,6 @@ class Color:
         return "color(%i, %i, %i)" % (self.r, self.g, self.b)
 
     def lerp(self, origin, target, lerp_val):
-        # r = ramp(self.r, color.r, duration, delta_time)
-        # b = ramp(self.b, color.b, duration, delta_time)
-        # g = ramp(self.g, color.g, duration, delta_time)
-        # self.r = self.r + lerp_val*delta_time*duration(color.r-self.r)
         self.r = origin.r + lerp_val*(target.r-origin.r)
         self.g = origin.g + lerp_val*(target.g-origin.g)
         self.b = origin.b + lerp_val*(target.b-origin.b)
@@ -96,6 +94,7 @@ class Illuminator:
     def __init__(self, path):
         self.path = path
         self.color = BLACK
+        self.blink = 0
         self.connection = hid.device(None, None, path)
         self.connection.set_nonblocking(1)
         self.turn_off()
@@ -108,7 +107,19 @@ class Illuminator:
 
     def set(self, color):
         try:
-            data = [0x6, 0x1, color.r, color.g, color.b, 0]
+            data = [0x6, 0x1, color.r, color.g, color.b, self.blink]
+            checksum = -(twos_comp(sum_data_bytes(data))) % 256
+            message  = [header_byte] + data + [checksum, footer_byte]
+            self.connection.write(message)
+            self.color = color
+
+        except IOError, ex:
+            print ex
+            self.connection.close()
+
+    def set_blinking(self, color, blink):
+        try:
+            data = [0x6, 0x1, color.r, color.g, color.b, blink]
             checksum = -(twos_comp(sum_data_bytes(data))) % 256
             message  = [header_byte] + data + [checksum, footer_byte]
             self.connection.write(message)
@@ -145,7 +156,7 @@ def heartbeat(illuminators, target, duration):
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(previous_color, target, lerp_val))
-            lerp_val = lerp_val + (0.0002/duration)
+            lerp_val = lerp_val + (0.2/duration)
 
     lerp_val = 0
 
@@ -157,7 +168,7 @@ def heartbeat(illuminators, target, duration):
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(target, previous_color, lerp_val))
-            lerp_val = lerp_val + (0.0002/duration)
+            lerp_val = lerp_val + (0.2/duration)
         beating = False
 
 
@@ -182,12 +193,31 @@ def transition(illuminators, target, duration):
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(previous_color, target, lerp_val))
-            lerp_val = lerp_val + (0.0002 / duration);
+            lerp_val = lerp_val + (0.2 / duration);
 
     illuminator.set(target)
 
     print "...changed color over %r seconds -- DONE" % ((current_time - start_time))
 
+def flicker(illuminators, color, blink_rate):
+    for illuminator in illuminators:
+        illuminator.set_blinking(color, blink_rate)
+
+def random_flicker(illuminators, color, threshold, start_time, duration):
+    global is_blinking
+    while is_blinking is True:
+        for illuminator in illuminators:
+            if random.random() > threshold:
+                illuminator.set(color)
+                time.sleep(0.2)
+            else:
+                illuminator.set(Color(0, 0, 0))
+                time.sleep(0.1)
+        if time.clock() > (start_time + duration):
+            is_blinking = False
+            illuminator.set(color)
+            print "done blinking"
+        # print "the current time is %r compared to start %r and duration %r" % (time.clock(), start_time, duration)
 
 def noise_color(illuminator, color, duration):
     frame_count = 0
@@ -247,11 +277,21 @@ def handle_root(addr, tags, data, source):
 def handle_change(addr, tags, data, source):
     color = Color(data[0], data[1], data[2])
     duration = data[3]
-    print "handling change color %s over %r" % (color, duration)
-    transition(illuminators, color, duration)
+    if (duration < 10):
+        for illuminator in illuminators:
+            illuminator.set(color)
+    else:
+        print "handling change color %s over %rms" % (color, duration)
+        transition(illuminators, color, duration)
 
+prev_color = None
 def handle_color(addr, tags, data, source):
+    global prev_color
     color = Color(data[0], data[1], data[2])
+    if str(color) ==  prev_color:
+        return
+    print "setting color to %s" % color
+    prev_color = str(color)
     for illuminator in illuminators:
         illuminator.set(color)
 
@@ -267,15 +307,37 @@ def handle_black(addr, tags, data, source):
     for illuminator in illuminators:
         illuminator.turn_off()
 
+def start_blink(addr, tags, data, source):
+    color = Color(data[0], data[1], data[2])
+    rate = data[3]
+    flicker(illuminators, color, rate)
+
+def enable_blink(addr, tags, data, source):
+    global is_blinking
+    is_blinking = True
+    start_time = time.clock()
+    color = Color(data[0], data[1], data[2])
+    threshold = data[3]
+    duration = data[4]
+    random_flicker(illuminators, color, threshold, start_time, duration)
+
+def disable_blink(addr, tags, data, source):
+    global is_blinking
+    is_blinking = False
+
+def stop_blink(addr, tags, data, source):
+    for illuminator in illuminators:
+        illuminator.set(Color(0, 0, 0))
+
 
 def handle_noise(addr, tags, data, source):
     noise_color(data)
 
 print "endpoints:"
 print "---"
-print "/change r g b t ---- changes the color to the specified rgb values over t seconds"
+print "/change r g b t ---- changes the color to the specified rgb values over t ms"
 print "/color r g b ---- changes the color immediately"
-print "/heartbeat r g b t --- pulsates to the target color over t seconds"
+print "/heartbeat r g b t --- pulsates to the target color over t ms"
 print "/black --- turns off the lamp"
 print "---"
 
@@ -285,6 +347,11 @@ s.addMsgHandler('/color', handle_color)
 s.addMsgHandler('/heartbeat', handle_heartbeat)
 s.addMsgHandler('/black', handle_black)
 s.addMsgHandler('/noise', handle_noise)
+
+s.addMsgHandler('/start_blink', start_blink)
+s.addMsgHandler('/stop_blink', stop_blink)
+s.addMsgHandler('/enable_blink', enable_blink)
+s.addMsgHandler('/disable_blink', disable_blink)
 
 #Start OSCServer
 print "\nStarting OSCServer. Use ctrl-C to quit."
