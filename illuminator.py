@@ -9,9 +9,10 @@ import time
 from time import sleep
 from noise import pnoise1
 import socket, OSC, threading
+import ctypes
 
 #IP Adress and outgoing port to listen on
-receive_address = ('127.0.0.1', 7000)
+receive_address = ('0.0.0.0', 7000)
 
 header_byte = 0xa9
 footer_byte = 0x5c
@@ -64,7 +65,24 @@ def ramp(a, b, t, delta):
 
     return a
 
+def terminate_thread(thread):
+    """Terminates a python thread from another thread.
 
+    :param thread: a threading.Thread instance
+    """
+    if not thread.isAlive():
+        return
+
+    exc = ctypes.py_object(SystemExit)
+    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+        ctypes.c_long(thread.ident), exc)
+    if res == 0:
+        raise ValueError("nonexistent thread id")
+    elif res > 1:
+        # """if it returns a number greater than one, you're in trouble,
+        # and you should call it again with exc=NULL to revert the effect"""
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, None)
+        raise SystemError("PyThreadState_SetAsyncExc failed")
 
 class Color:
     def __init__(self, r, g, b):
@@ -88,7 +106,7 @@ class Color:
 BLACK = Color(0, 0, 0)
 WHITE = Color(255, 255, 255)
 
-
+color_thread = None
 
 class Illuminator:
     def __init__(self, path):
@@ -136,11 +154,8 @@ class Illuminator:
 #-------------------------COLOR METHODS--------------------------------
 #heartbeat ramps from the current color to the target color over t seconds, then ramps back down to the starting color
 def heartbeat(illuminators, target, duration):
-    global beating
     start_time = time.clock()
-
     previous_color = Color(illuminators[0].color.r, illuminators[0].color.g, illuminators[0].color.b)
-
     thresh = 1
 
     current_time = 0
@@ -156,7 +171,7 @@ def heartbeat(illuminators, target, duration):
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(previous_color, target, lerp_val))
-            lerp_val = lerp_val + (0.2/duration)
+            lerp_val = lerp_val + (0.001/duration)
 
     lerp_val = 0
 
@@ -168,11 +183,9 @@ def heartbeat(illuminators, target, duration):
             delta_time = current_time - previous_time
 
             illuminator.set(illuminator.color.lerp(target, previous_color, lerp_val))
-            lerp_val = lerp_val + (0.2/duration)
-        beating = False
-
-
+            lerp_val = lerp_val + (0.001/duration)
     print 'heartbeat set over %r second(s) back to %s -- DONE' % ((current_time - start_time), previous_color)
+
 
 def transition(illuminators, target, duration):
     start_time = time.clock()
@@ -204,20 +217,19 @@ def flicker(illuminators, color, blink_rate):
         illuminator.set_blinking(color, blink_rate)
 
 def random_flicker(illuminators, color, threshold, start_time, duration):
-    global is_blinking
-    while is_blinking is True:
+    while True:
         for illuminator in illuminators:
             if random.random() > threshold:
                 illuminator.set(color)
-                time.sleep(0.2)
+                time.sleep(0.1)
             else:
                 illuminator.set(Color(0, 0, 0))
-                time.sleep(0.1)
-        if time.clock() > (start_time + duration):
+                time.sleep(0.05)
+        if time.clock() > (start_time + duration*0.000001):
             is_blinking = False
             illuminator.set(color)
             print "done blinking"
-        # print "the current time is %r compared to start %r and duration %r" % (time.clock(), start_time, duration)
+
 
 def noise_color(illuminator, color, duration):
     frame_count = 0
@@ -262,8 +274,9 @@ else:
 
 # Initialize the OSC server and the client.
 s = OSC.OSCServer(receive_address)
-s.request_queue_size = 1
+s.request_queue_size = 0
 s.addDefaultHandlers()
+
 
 #default handler prints out the message
 def handle_root(addr, tags, data, source):
@@ -275,6 +288,11 @@ def handle_root(addr, tags, data, source):
 	print "---"
 
 def handle_change(addr, tags, data, source):
+    global color_thread
+    if color_thread is not None:
+        terminate_thread(color_thread)
+        color_thread = None
+
     color = Color(data[0], data[1], data[2])
     duration = data[3]
     if (duration < 10):
@@ -282,23 +300,29 @@ def handle_change(addr, tags, data, source):
             illuminator.set(color)
     else:
         print "handling change color %s over %rms" % (color, duration)
-        transition(illuminators, color, duration)
+        color_thread = threading.Thread(target=transition, args=(illuminators, color, duration))
+        color_thread.start()
 
 prev_color = None
 def handle_color(addr, tags, data, source):
     global prev_color
-    color = Color(data[0], data[1], data[2])
-    if str(color) ==  prev_color:
-        return
-    print "setting color to %s" % color
-    prev_color = str(color)
-    for illuminator in illuminators:
-        illuminator.set(color)
+    global color_thread
+
+    if color_thread is not None:
+        terminate_thread(color_thread)
+        color_thread = None
+        color = Color(data[0], data[1], data[2])
+        if str(color) ==  prev_color:
+            return
+        print "setting color to %s" % color
+        prev_color = str(color)
+        for illuminator in illuminators:
+            illuminator.set(color)
 
 def handle_heartbeat(addr, tags, data, source):
     global beating
     color = Color(data[0], data[1], data[2])
-    duration = data[3]
+    duration = data[3]*0.00000001
     print "received message with beating is %r" % beating
     beating = True
     heartbeat(illuminators, color, duration)
@@ -313,13 +337,17 @@ def start_blink(addr, tags, data, source):
     flicker(illuminators, color, rate)
 
 def enable_blink(addr, tags, data, source):
-    global is_blinking
-    is_blinking = True
+    print "enable blink"
+    # global is_blinking
+    # is_blinking = True
     start_time = time.clock()
     color = Color(data[0], data[1], data[2])
     threshold = data[3]
     duration = data[4]
-    random_flicker(illuminators, color, threshold, start_time, duration)
+    # random_flicker(illuminators, color, threshold, start_time, duration)
+    global color_thread
+    color_thread = threading.Thread(target=random_flicker, args=(illuminators, color, threshold, start_time, duration))
+    color_thread.start()
 
 def disable_blink(addr, tags, data, source):
     global is_blinking
@@ -332,6 +360,21 @@ def stop_blink(addr, tags, data, source):
 
 def handle_noise(addr, tags, data, source):
     noise_color(data)
+
+
+print "here they are %r" % illuminators
+
+
+def handle_endless(addr, tags, data, source):
+    global color_thread
+    color_thread = threading.Thread(target=endless)
+    color_thread.start()
+
+def handle_break(addr, tags, data, source):
+    global color_thread
+    terminate_thread(color_thread)
+    color_thread = None
+
 
 print "endpoints:"
 print "---"
@@ -352,6 +395,9 @@ s.addMsgHandler('/start_blink', start_blink)
 s.addMsgHandler('/stop_blink', stop_blink)
 s.addMsgHandler('/enable_blink', enable_blink)
 s.addMsgHandler('/disable_blink', disable_blink)
+
+s.addMsgHandler('/endless', handle_endless)
+s.addMsgHandler('/break', handle_break)
 
 #Start OSCServer
 print "\nStarting OSCServer. Use ctrl-C to quit."
