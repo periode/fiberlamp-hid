@@ -346,7 +346,7 @@ def handle_set_change(addr, tags, data, source):
     target_color = Color(data[3], data[4], data[5])
     duration = data[6]
 
-    print "handling change color %s over %rms" % (color, duration)
+    print "handling change color %s over %rms" % (target_color, duration)
     color_thread = threading.Thread(target=transition, args=(illuminators, target_color, duration))
     color_thread.start()
 
