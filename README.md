@@ -15,12 +15,14 @@ The main script is illuminator.py and contains different endpoints:
 
 * /black will set the color to black, essentially turning off the lamp
 
+* /blink d t will start blinking the color
+
 
 ## dependencies
 
 This script requires the following python modules:
 * [cython-hid](https://github.com/trezor/cython-hidapi)
-* [OSC](https://pypi.python.org/pypi/python-osc)
+* [pyOSC](https://trac.v2.nl/wiki/pyOSC)
 
 
 ## additional scripts
