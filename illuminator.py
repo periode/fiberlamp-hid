@@ -258,6 +258,8 @@ def noise_color(illuminators, step, amplitude):
 
         for illuminator in illuminators:
             illuminator.set(final_color)
+            
+        time.sleep(0.001)
 
 def throb_color(illuminators, step, amplitude):
     base_color = Color(illuminators[0].color.r, illuminators[0].color.g, illuminators[0].color.b)
@@ -268,7 +270,6 @@ def throb_color(illuminators, step, amplitude):
         lightness = 0.1+remap(temp_color[1]*math.sin(time.clock()*step)*amplitude, -amplitude, amplitude, 0.1, 0.8)
 
         final_color_rgb = colorsys.hls_to_rgb(temp_color[0], lightness, temp_color[2])
-
         final_color = Color(int(remap(final_color_rgb[0], 0, 1, 0, 255)), int(remap(final_color_rgb[1], 0, 1, 0, 255)), int(remap(final_color_rgb[2], 0, 1, 0, 255)))
 
         for illuminator in illuminators:

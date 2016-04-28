@@ -60,7 +60,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 287.0, 518.0, 68.0, 22.0 ],
 					"style" : "",
-					"text" : "/throb 50 1"
+					"text" : "/throb 25 1"
 				}
 
 			}
