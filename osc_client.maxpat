@@ -58,9 +58,9 @@
 					"numinlets" : 2,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 287.0, 517.0, 61.0, 22.0 ],
+					"patching_rect" : [ 287.0, 518.0, 68.0, 22.0 ],
 					"style" : "",
-					"text" : "/throb 1 1"
+					"text" : "/throb 50 1"
 				}
 
 			}

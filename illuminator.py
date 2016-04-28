@@ -265,7 +265,7 @@ def throb_color(illuminators, step, amplitude):
 
     while True:
         #TODO have a possibility to set high threshold and low threshold?
-        lightness = 0.1+remap(temp_color[1]*math.sin(time.clock()*step)*amplitude, -amplitude, amplitude, 0, 0.9)
+        lightness = 0.1+remap(temp_color[1]*math.sin(time.clock()*step)*amplitude, -amplitude, amplitude, 0.1, 0.8)
 
         final_color_rgb = colorsys.hls_to_rgb(temp_color[0], lightness, temp_color[2])
 
@@ -273,6 +273,8 @@ def throb_color(illuminators, step, amplitude):
 
         for illuminator in illuminators:
             illuminator.set(final_color)
+
+        time.sleep(0.001)
 
 
 
@@ -346,21 +348,22 @@ def handle_set_change(addr, tags, data, source):
     target_color = Color(data[3], data[4], data[5])
     duration = data[6]
 
-    print "handling change color %s over %rms" % (target_color, duration)
+    print "handling set change color %s over %rms" % (target_color, duration)
     color_thread = threading.Thread(target=transition, args=(illuminators, target_color, duration))
     color_thread.start()
 
 def handle_color(addr, tags, data, source):
-    print "handling set color"
+    print "handling set color..."
     global prev_color
 
     clear_thread()
 
     color = Color(data[0], data[1], data[2])
-    if str(color) ==  prev_color:
-        return
+    # if str(color) ==  prev_color:
+    #     return
 
     prev_color = str(color)
+    print "...setting color"
     for illuminator in illuminators:
         illuminator.set(color)
 
@@ -437,6 +440,8 @@ def handle_throbendo(addr, tags, data, source):
 def handle_break(addr, tags, data, source):
     print "handling break"
     clear_thread()
+    global color_thread
+    color_thread = None
 
 #TODO write the /throbendo
 print "endpoints:"
@@ -465,10 +470,10 @@ s.addMsgHandler('/break', handle_break)
 
 #Start OSCServer
 print "\nStarting OSCServer. Use ctrl-C to quit."
-# st = threading.Thread( target = s.serve_forever )
-# st.start()
-while True:
-    s.handle_request()
+st = threading.Thread( target = s.serve_forever )
+st.start()
+# while True:
+#     s.handle_request()
 
 #Threads
 try :
