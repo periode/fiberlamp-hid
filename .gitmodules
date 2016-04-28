@@ -1,0 +1,3 @@
+[submodule "cython-hidapi"]
+	path = cython-hidapi
+	url = git@github.com:pierredepaz/fiberlamp-hid.git
