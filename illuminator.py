@@ -239,9 +239,6 @@ def random_flicker(illuminators, base, target, threshold, start_time, duration):
             else:
                 illuminator.set(base_color)
                 time.sleep(0.05)
-        if time.clock() > (start_time + duration*0.000001):
-            illuminator.set(target)
-            print "done blinking"
 
 
 #modulates the lightness component of the current color with a noise value
