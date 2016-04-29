@@ -114,6 +114,7 @@ class Color:
         self.r = origin.r + lerp_val*(target.r-origin.r)
         self.g = origin.g + lerp_val*(target.g-origin.g)
         self.b = origin.b + lerp_val*(target.b-origin.b)
+
         return Color(self.r, self.g, self.b)
 
     def distance(self, other):
