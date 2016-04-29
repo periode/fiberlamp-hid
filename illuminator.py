@@ -228,25 +228,25 @@ def transition(illuminators, target, duration):
 
 
 #flickers randomly between previous color and given color
-def random_flicker(illuminators, color, threshold, start_time, duration):
-    base_color = Color(illuminators[0].color.r, illuminators[0].color.g, illuminators[0].color.b)
+def random_flicker(illuminators, base, target, threshold, start_time, duration):
+    base_color = Color(base.r, base.g, base.b)
 
     while True:
         for illuminator in illuminators:
             if random.random() > threshold:
-                illuminator.set(color)
+                illuminator.set(target)
                 time.sleep(0.1)
             else:
                 illuminator.set(base_color)
                 time.sleep(0.05)
         if time.clock() > (start_time + duration*0.000001):
-            illuminator.set(color)
+            illuminator.set(target)
             print "done blinking"
 
 
 #modulates the lightness component of the current color with a noise value
-def noise_color(illuminators, step, amplitude):
-    base_color = Color(illuminators[0].color.r, illuminators[0].color.g, illuminators[0].color.b)
+def noise_color(illuminators, color, step, amplitude):
+    base_color = Color(color.r, color.g, color.b)
     temp_color = colorsys.rgb_to_hls(remap(base_color.r, 0, 255, 0, 1), remap(base_color.g, 0, 255, 0, 1), remap(base_color.b, 0, 255, 0, 1))
 
     while True:
@@ -258,11 +258,11 @@ def noise_color(illuminators, step, amplitude):
 
         for illuminator in illuminators:
             illuminator.set(final_color)
-            
+
         time.sleep(0.001)
 
-def throb_color(illuminators, step, amplitude):
-    base_color = Color(illuminators[0].color.r, illuminators[0].color.g, illuminators[0].color.b)
+def throb_color(illuminators, color, step, amplitude):
+    base_color = Color(color.r, color.g, color.b)
     temp_color = colorsys.rgb_to_hls(remap(base_color.r, 0, 255, 0, 1), remap(base_color.g, 0, 255, 0, 1), remap(base_color.b, 0, 255, 0, 1))
 
     while True:
@@ -398,11 +398,12 @@ def handle_blink(addr, tags, data, source):
     clear_thread()
 
     start_time = time.clock()
-    color = Color(data[0], data[1], data[2])
-    threshold = data[3]
-    duration = data[4]
+    base_color = Color(data[0], data[1], data[2])
+    target_color = Color(data[3], data[4], data[5])
+    threshold = data[6]
+    duration = data[7]
 
-    color_thread = threading.Thread(target=random_flicker, args=(illuminators, color, threshold, start_time, duration))
+    color_thread = threading.Thread(target=random_flicker, args=(illuminators, base_color, target_color, threshold, start_time, duration))
     color_thread.start()
 
 
@@ -412,10 +413,12 @@ def handle_noise(addr, tags, data, source):
 
     clear_thread()
 
-    step = data[0]
-    amplitude = data[1]
+    color = Color(data[0], data[1], data[2])
 
-    color_thread = threading.Thread(target=noise_color, args=(illuminators, step, amplitude))
+    step = data[3]
+    amplitude = data[4]
+
+    color_thread = threading.Thread(target=noise_color, args=(illuminators, color, step, amplitude))
     color_thread.start()
 
 def handle_throb(addr, tags, data, source):
@@ -424,10 +427,12 @@ def handle_throb(addr, tags, data, source):
 
     clear_thread()
 
-    step = data[0]
-    amplitude = data[1]
+    color = Color(data[0], data[1], data[2])
 
-    color_thread = threading.Thread(target=throb_color, args=(illuminators, step, amplitude))
+    step = data[3]
+    amplitude = data[4]
+
+    color_thread = threading.Thread(target=throb_color, args=(illuminators, color, step, amplitude))
     color_thread.start()
 
 
@@ -443,6 +448,9 @@ def handle_break(addr, tags, data, source):
     clear_thread()
     global color_thread
     color_thread = None
+
+    for illuminator in illuminators:
+        illuminator.turn_off()
 
 #TODO write the /throbendo
 print "endpoints:"
