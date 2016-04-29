@@ -264,8 +264,8 @@ def throb_color(illuminators, color, step, amplitude):
 
     while True:
         #TODO have a possibility to set high threshold and low threshold?
-        lightness = 0.1+remap(temp_color[1]*math.sin(time.clock()*step)*amplitude, -amplitude, amplitude, 0.1, 0.8)
-
+        lightness = 0.1+remap(temp_color[1]*math.cos(time.clock()*step)*float(amplitude), -1.0, 1.0, 0.1, 0.8)
+        print "l: %r" % lightness
         final_color_rgb = colorsys.hls_to_rgb(temp_color[0], lightness, temp_color[2])
         final_color = Color(int(remap(final_color_rgb[0], 0, 1, 0, 255)), int(remap(final_color_rgb[1], 0, 1, 0, 255)), int(remap(final_color_rgb[2], 0, 1, 0, 255)))
 
@@ -427,7 +427,8 @@ def handle_throb(addr, tags, data, source):
     color = Color(data[0], data[1], data[2])
 
     step = data[3]
-    amplitude = data[4]
+    amplitude = float(data[4])
+
 
     color_thread = threading.Thread(target=throb_color, args=(illuminators, color, step, amplitude))
     color_thread.start()
@@ -456,8 +457,8 @@ print "/change r g b t ---- changes the color to the specified rgb values over t
 print "/set_change r1 g1 b1 r2 g2 b2 t ---- sets the color to r1 g1 b1 and then changes to r2 g2 b2 over t ms"
 print "/color r g b ---- changes the color immediately"
 print "/heartbeat r g b t --- pulsates to the target color over t ms"
-print "/noise s a --- noise over the lightness component of the previous color with step s (1-10) and amplitude a (1-10)"
-print "/throb s a --- sine over the lightness component of the previous color with step s (1-10) and amplitude a (1-10)"
+print "/noise s a --- noise over the lightness component of the previous color with step s (1-10) and amplitude a (0-1)"
+print "/throb s a --- sine over the lightness component of the previous color with step s (1-10) and amplitude a (0-1)"
 print "/throbendo --- exponential sine over the lightness component of the previous color"
 print "/black --- turns off the lamp"
 print "/break --- interrupts the current command"
