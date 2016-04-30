@@ -461,7 +461,7 @@ print "/change r g b t ---- changes the color to the specified rgb values over t
 print "/set_change r1 g1 b1 r2 g2 b2 t ---- sets the color to r1 g1 b1 and then changes to r2 g2 b2 over t ms"
 print "/color r g b ---- changes the color immediately"
 print "/heartbeat r g b t --- pulsates to the target color over t ms"
-print "/noise s a --- noise over the lightness component of the previous color with step s (1-10) and amplitude a (0-1)"
+print "/noise r g b s a --- noise over the lightness component of the color with step s (1-10) and amplitude a (0-1)"
 print "/throb r g b s a --- sine over the lightness component of the color with step s (1-10) and amplitude a (0-1)"
 print "/throbendo --- exponential sine over the lightness component of the previous color"
 print "/black --- turns off the lamp"
