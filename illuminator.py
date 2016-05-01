@@ -264,9 +264,7 @@ def throb_color(illuminators, color, step, amplitude):
     temp_color = colorsys.rgb_to_hls(remap(base_color.r, 0, 255, 0, 1), remap(base_color.g, 0, 255, 0, 1), remap(base_color.b, 0, 255, 0, 1))
 
     while True:
-        #TODO have a possibility to set high threshold and low threshold?
         lightness = 0.1+remap(temp_color[1]*math.cos(time.clock()*step)*float(amplitude), -1.0, 1.0, 0.1, 0.8)
-        print "l: %r" % lightness
         final_color_rgb = colorsys.hls_to_rgb(temp_color[0], lightness, temp_color[2])
         final_color = Color(int(remap(final_color_rgb[0], 0, 1, 0, 255)), int(remap(final_color_rgb[1], 0, 1, 0, 255)), int(remap(final_color_rgb[2], 0, 1, 0, 255)))
 
@@ -274,6 +272,33 @@ def throb_color(illuminators, color, step, amplitude):
             illuminator.set(final_color)
 
         time.sleep(0.001)
+
+def throbendo(illuminators, color, increase):
+    base_color = Color(color.r, color.g, color.b)
+    temp_color = colorsys.rgb_to_hls(remap(base_color.r, 0, 255, 0, 1), remap(base_color.g, 0, 255, 0, 1), remap(base_color.b, 0, 255, 0, 1))
+
+    step = 0.005
+    amplitude = 0.005
+    min_lightness = 0
+    max_lightness = 0.5
+    base = 0
+
+    while True:
+        # saturation = 0.1+remap(temp_color[2]*math.cos(time.clock()*step)*float(amplitude), -1.0, 1.0, 0.1, 0.8)
+        lightness = remap(-math.cos(base*step)*float(amplitude), -float(amplitude), float(amplitude), min_lightness, max_lightness)
+        final_color_rgb = colorsys.hls_to_rgb(temp_color[0], lightness, temp_color[2])
+        final_color = Color(int(remap(final_color_rgb[0], 0, 1, 0, 255)), int(remap(final_color_rgb[1], min_lightness, max_lightness, 0, 255)), int(remap(final_color_rgb[2], 0, 1, 0, 255)))
+
+        for illuminator in illuminators:
+            illuminator.set(final_color)
+
+        base += time.clock()
+        amplitude += (0.000001/float(increase)*float(amplitude))
+        step += (0.000001/float(increase)*float(amplitude))
+
+        time.sleep(0.001)
+
+    print "done throbendo"
 
 
 
@@ -441,6 +466,12 @@ def handle_throbendo(addr, tags, data, source):
 
     clear_thread()
 
+    color = Color(data[0], data[1], data[2])
+    increase = float(data[3])
+
+    color_thread = threading.Thread(target=throbendo, args=(illuminators, color, increase))
+    color_thread.start()
+
 
 def handle_break(addr, tags, data, source):
     print "handling break"
@@ -471,6 +502,7 @@ s.addMsgHandler('/set_change', handle_set_change)
 s.addMsgHandler('/color', handle_color)
 s.addMsgHandler('/heartbeat', handle_heartbeat)
 s.addMsgHandler('/throb', handle_throb);
+s.addMsgHandler('/throbendo', handle_throbendo);
 s.addMsgHandler('/black', handle_black)
 s.addMsgHandler('/noise', handle_noise)
 s.addMsgHandler('/blink', handle_blink)
