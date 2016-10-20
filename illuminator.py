@@ -12,7 +12,7 @@ import colorsys
 import ctypes
 
 #IP Adress and outgoing port to listen on
-receive_address = ('0.0.0.0', 7000)
+receive_address = ('0.0.0.0', 7001)
 
 header_byte = 0xa9
 footer_byte = 0x5c
@@ -206,7 +206,7 @@ def transition(illuminators, target, duration):
     start_time = time.clock()
 
     lerp_val = 0
-    thresh = 2
+    thresh = 4
     previous_color = Color(illuminators[0].color.r, illuminators[0].color.g, illuminators[0].color.b)
 
     print "changing pair color to %s over %r seconds..." % (target, duration)
@@ -277,8 +277,8 @@ def throbendo(illuminators, color, increase):
     base_color = Color(color.r, color.g, color.b)
     temp_color = colorsys.rgb_to_hls(remap(base_color.r, 0, 255, 0, 1), remap(base_color.g, 0, 255, 0, 1), remap(base_color.b, 0, 255, 0, 1))
 
-    step = 0.005
-    amplitude = 0.005
+    step = 0.001
+    amplitude = 0.001
     min_lightness = 0
     max_lightness = 0.5
     base = 0
@@ -292,13 +292,11 @@ def throbendo(illuminators, color, increase):
         for illuminator in illuminators:
             illuminator.set(final_color)
 
-        base += time.clock()
-        amplitude += (0.000001/float(increase)*float(amplitude))
-        step += (0.000001/float(increase)*float(amplitude))
+        base = base + 7
+        amplitude += (0.0003/float(increase)*float(amplitude))
+        step += (0.0004/float(increase)*float(amplitude))
 
         time.sleep(0.001)
-
-    print "done throbendo"
 
 
 
@@ -312,11 +310,11 @@ for d in hid.enumerate(0, 0):
     if d["product_id"] == product_id:
         illuminators.append(Illuminator(d["path"]))
 
-if len(illuminators) > 2 or len(illuminators) == 0:
-    print "unexpected amount of light"
-    exit(1)
-else:
-    print "succesfully lit illuminator(s): %r" % illuminators
+# if len(illuminators) > 2 or len(illuminators) == 0:
+#     print "unexpected amount of light"
+#     exit(1)
+# else:
+#     print "succesfully lit illuminator(s): %r" % illuminators
 
 
 ##########################
@@ -365,12 +363,13 @@ def handle_set_change(addr, tags, data, source):
     clear_thread()
 
     first_color = Color(data[0], data[1], data[2])
+    target_color = Color(data[3], data[4], data[5])
+    duration = data[6]
 
     for illuminator in illuminators:
         illuminator.set(first_color)
 
-    target_color = Color(data[3], data[4], data[5])
-    duration = data[6]
+
 
     print "handling set change color %s over %rms" % (target_color, duration)
     color_thread = threading.Thread(target=transition, args=(illuminators, target_color, duration))
@@ -383,8 +382,6 @@ def handle_color(addr, tags, data, source):
     clear_thread()
 
     color = Color(data[0], data[1], data[2])
-    # if str(color) ==  prev_color:
-    #     return
 
     prev_color = str(color)
     print "...setting color"
@@ -428,6 +425,7 @@ def handle_blink(addr, tags, data, source):
 
     color_thread = threading.Thread(target=random_flicker, args=(illuminators, base_color, target_color, threshold, start_time, duration))
     color_thread.start()
+    print "...blink succesfully started!"
 
 
 def handle_noise(addr, tags, data, source):
@@ -443,6 +441,7 @@ def handle_noise(addr, tags, data, source):
 
     color_thread = threading.Thread(target=noise_color, args=(illuminators, color, step, amplitude))
     color_thread.start()
+    print "...noise succesfully started!"
 
 def handle_throb(addr, tags, data, source):
     print "handling throb"
@@ -461,6 +460,7 @@ def handle_throb(addr, tags, data, source):
 
     color_thread = threading.Thread(target=throb_color, args=(illuminators, color, step, amplitude))
     color_thread.start()
+    print "...throb succesfully started!"
 
 
 def handle_throbendo(addr, tags, data, source):
@@ -469,11 +469,15 @@ def handle_throbendo(addr, tags, data, source):
 
     clear_thread()
 
+    for illuminator in illuminators:
+        illuminator.turn_off()
+
     color = Color(data[0], data[1], data[2])
     increase = float(data[3])
 
     color_thread = threading.Thread(target=throbendo, args=(illuminators, color, increase))
     color_thread.start()
+    print "...throbendo succesfully started!"
 
 
 def handle_break(addr, tags, data, source):
@@ -484,6 +488,8 @@ def handle_break(addr, tags, data, source):
 
     for illuminator in illuminators:
         illuminator.turn_off()
+
+    print "...broken"
 
 #TODO write the /throbendo
 print "endpoints:"
@@ -504,12 +510,13 @@ s.addMsgHandler('/change', handle_change)
 s.addMsgHandler('/set_change', handle_set_change)
 s.addMsgHandler('/color', handle_color)
 s.addMsgHandler('/heartbeat', handle_heartbeat)
-s.addMsgHandler('/throb', handle_throb);
-s.addMsgHandler('/throbendo', handle_throbendo);
+s.addMsgHandler('/throb', handle_throb)
+s.addMsgHandler('/throbendo', handle_throbendo)
 s.addMsgHandler('/black', handle_black)
 s.addMsgHandler('/noise', handle_noise)
 s.addMsgHandler('/blink', handle_blink)
 s.addMsgHandler('/break', handle_break)
+
 
 #Start OSCServer
 print "\nStarting OSCServer. Use ctrl-C to quit."

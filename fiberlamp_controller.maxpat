@@ -9,7 +9,9 @@
 			"modernui" : 1
 		}
 ,
-		"rect" : [ 34.0, 79.0, 1212.0, 683.0 ],
+		"rect" : [ 34.0, 79.0, 806.0, 683.0 ],
+		"bgcolor" : [ 0.239216, 0.254902, 0.278431, 1.0 ],
+		"editing_bgcolor" : [ 0.32549, 0.345098, 0.372549, 1.0 ],
 		"bglocked" : 0,
 		"openinpresentation" : 0,
 		"default_fontsize" : 12.0,
@@ -394,7 +396,7 @@
 , 			{
 				"box" : 				{
 					"id" : "obj-27",
-					"items" : [ "to Max 1", ",", "to Max 2", ",", "nanoKONTROL2 SLIDER/KNOB" ],
+					"items" : [ "Scarlett 6i6 USB", ",", "to Max 1", ",", "to Max 2" ],
 					"maxclass" : "umenu",
 					"numinlets" : 1,
 					"numoutlets" : 3,
@@ -517,7 +519,7 @@
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 329.0, 349.0, 50.0, 22.0 ],
 					"style" : "",
-					"text" : "173 0 0"
+					"text" : "0 0 0"
 				}
 
 			}
@@ -1248,14 +1250,17 @@
 			}
 , 			{
 				"box" : 				{
+					"bgcolor" : [ 0.304029, 0.250694, 0.285628, 1.0 ],
+					"checkedcolor" : [ 0.439216, 0.74902, 0.254902, 1.0 ],
 					"id" : "obj-45",
 					"maxclass" : "toggle",
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "int" ],
 					"parameter_enable" : 0,
-					"patching_rect" : [ 173.0, 341.0, 22.0, 22.0 ],
-					"style" : ""
+					"patching_rect" : [ 94.0, 290.0, 77.0, 77.0 ],
+					"style" : "",
+					"uncheckedcolor" : [ 0.52549, 0.062745, 0.003922, 1.0 ]
 				}
 
 			}
